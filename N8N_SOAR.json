@@ -1,0 +1,402 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -16,
+        80
+      ],
+      "id": "87591830-98eb-408a-a97c-d2b5ced77a74",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "name": "Replace Me",
+      "typeVersion": 1,
+      "position": [
+        96,
+        288
+      ],
+      "id": "07264fa9-1197-422e-ae68-99eac94ca908"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": true,
+        "simple": "={{ true }}",
+        "filters": {
+          "labelIds": [
+            "INBOX",
+            "UNREAD"
+          ],
+          "receivedAfter": "={{ Date.now() - (7 * 24 * 60 * 60 * 1000) }}\n"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -448,
+        80
+      ],
+      "id": "781e6f8b-1242-4910-80b3-1d2f4173ea30",
+      "name": "Get many messages",
+      "webhookId": "57ffea0e-f0c7-4aae-8ed2-e0f52186649c",
+      "alwaysOutputData": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9bAeBqYXHsRzUVBu",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "preBuiltAgentsCalloutHttpRequest": "",
+        "httpVariantWarning": "",
+        "curlImport": "",
+        "method": "GET",
+        "": "",
+        "url": "=https://www.virustotal.com/api/v3/urls/aHR0cHM6Ly9leGFtcGxlLmNvbQ\n",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "virusTotalApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": false,
+        "sendBody": false,
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        0
+      ],
+      "id": "170b2219-9274-4964-98cb-f5d706ae4540",
+      "name": "VirusTotal HTTP Request",
+      "extendsCredential": "virusTotalApi",
+      "credentials": {
+        "virusTotalApi": {
+          "id": "lYsIowzzhiBwYkAd",
+          "name": "VirusTotal account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function collectText(part){\n  if (!part) return '';\n  if (part.body?.data){\n    const b64 = part.body.data.replace(/-/g,'+').replace(/_/g,'/');\n    return Buffer.from(b64,'base64').toString('utf8');\n  }\n  if (Array.isArray(part.parts)) return part.parts.map(collectText).join('\\n');\n  return '';\n}\nconst text = collectText($json.payload) + '\\n' + ($json.snippet || '');\nconst urls = Array.from(text.matchAll(/https?:\\/\\/[^\\s<>\"')]+/gi)).map(m=>m[0]);\nif (!urls.length) return [];\nfunction vtEncode(u){\n  return Buffer.from(u).toString('base64').replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');\n}\nreturn urls.map(u => ({ json: { messageId: $json.id, url: u, vt_id: vtEncode(u) } }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        192
+      ],
+      "id": "e7938f78-fd44-47a6-942d-e80abee4b453",
+      "name": "Code",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{$json.id}}",
+        "simple": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        -32
+      ],
+      "id": "79a26bd6-69f9-4024-8416-6a87b507194a",
+      "name": "Get a message",
+      "webhookId": "950eff78-445f-42e9-837a-7161bbea221a",
+      "alwaysOutputData": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9bAeBqYXHsRzUVBu",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "includeOtherFields": true,
+        "options": {
+          "dotNotation": false
+        }
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -256,
+        256
+      ],
+      "id": "e426411b-3ec3-4a35-8121-0a1edf318843",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C09CQP63UCB",
+          "mode": "list",
+          "cachedResultName": "all-josh-test"
+        },
+        "text": "=*[Phishing Check]* → *{{ $json.verdict.toUpperCase() }}*\n\n*URL*: {{ $json.url }}\n\n*Detections:*  \n- 🛑 Malicious: {{ $json.summary.malicious }}  \n- ⚠ Suspicious: {{ $json.summary.suspicious }}  \n- ✅ Harmless: {{ $json.summary.harmless }}  \n- ❓ Undetected: {{ $json.summary.undetected }}\n\n*VT details:* <{{ $json.vt_link }}|View on VirusTotal>\n\n_Automated with this n8n workflow_",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1184,
+        -64
+      ],
+      "id": "3671b191-baa5-49eb-8b3d-c97a9306185e",
+      "name": "Send a message",
+      "webhookId": "fb4628a9-34aa-4921-8bf2-9ed4710d5daf",
+      "alwaysOutputData": true,
+      "notesInFlow": false,
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "jMKqwGspRYrhD6uz",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d014168d-e4db-4ca2-bcc0-b4adc47870a3",
+              "leftValue": "={{$json.verdict}}",
+              "rightValue": "malicious",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "b33999b4-f3eb-42e8-a642-59cd30a9ddc9",
+              "leftValue": "={{$json.verdict}}",
+              "rightValue": "suspicious",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        48
+      ],
+      "id": "5e126078-bdc5-4c38-aef8-8e96fa4ee068",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build verdict from VirusTotal response on the current item\nconst attrs = $json.data?.attributes || {};\nconst stats = attrs.last_analysis_stats || {};\n\nconst mal  = Number(stats.malicious || 0);\nconst susp = Number(stats.suspicious || 0);\nconst harmless = Number(stats.harmless || 0);\nconst undet = Number(stats.undetected || 0);\n\nlet verdict = 'clean';\nif (mal >= 1) verdict = 'malicious';\nelse if (susp >= 1) verdict = 'suspicious';\n\n// Prefer the original URL if VT echoes it back; fallback to \"N/A\"\nconst url = attrs.url || \"N/A\";\nconst vt_link = $json.data?.links?.self || null;\n\n\nconst messageId = $json.messageId;\n\nreturn [{\n  json: {\n    verdict,\n    summary: { malicious: mal, suspicious: susp, harmless, undetected: undet },\n    url,\n    messageId,\n    vt_link,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        272
+      ],
+      "id": "44739954-e583-48b5-8918-d0a00ca955c0",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -656,
+        272
+      ],
+      "id": "8cbcaca8-e361-465e-a557-4b35116fe030",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9bAeBqYXHsRzUVBu",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Get a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Me": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "VirusTotal HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a message": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "34c2afd1-a983-480f-b2a2-a519f4c954ac",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5644f712b1ab2f998284a231c3f9e7f8e840a93d571e1885cbc71ea5a54b3ef4"
+  },
+  "id": "8OMYrdXZxovefbS2",
+  "tags": []
+}
